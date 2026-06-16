@@ -58,7 +58,7 @@ class ReAct(BaseAgent):
         alias (List[str]): Alternative names for this agent type.
     """
     config_class = ReActConfig
-    alias = ["react"]
+    alias = ["react_legacy"]
 
     def __init__(
             self,

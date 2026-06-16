@@ -18,24 +18,8 @@ from mcpuniverse.mcp.manager import MCPManager
 from mcpuniverse.tracer import Tracer
 
 from .mcp_tools import build_mcp_pydantic_tools
+from .response import normalize_agent_output
 from .tracing import build_messages_for_trace, emit_llm_trace, summarize_run_for_trace
-
-
-def _normalize_agent_output(output: str) -> str:
-    """Unwrap legacy thought/answer JSON wrappers so evaluators receive task JSON."""
-    response_text = output.strip().strip('`').strip()
-    if response_text.startswith("json"):
-        response_text = response_text[4:].strip()
-    try:
-        parsed = json.loads(response_text)
-    except json.JSONDecodeError:
-        return output
-    if isinstance(parsed, dict) and "answer" in parsed:
-        answer = parsed["answer"]
-        if isinstance(answer, str):
-            return answer
-        return json.dumps(answer)
-    return output
 
 
 class PydanticAIFunctionCall(BaseAgent):
@@ -116,6 +100,6 @@ class PydanticAIFunctionCall(BaseAgent):
         return AgentResponse(
             name=self._name,
             class_name=self.__class__.__name__,
-            response=_normalize_agent_output(result.output),
+            response=normalize_agent_output(result.output),
             trace_id=tracer.trace_id,
         )

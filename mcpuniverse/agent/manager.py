@@ -11,6 +11,15 @@ from mcpuniverse.mcp.manager import MCPManager
 from mcpuniverse.llm.base import BaseLLM
 from mcpuniverse.agent.base import BaseAgent
 
+# Ensure Pydantic AI-backed agents are imported and therefore registered
+# in ComponentABCMeta before WorkflowBuilder snapshots the registry.
+# (The repo does not rely on package __init__.py side-effects.)
+from mcpuniverse.agent.pydantic_ai.function_call import PydanticAIFunctionCall  # noqa: F401
+from mcpuniverse.agent.pydantic_ai.react import PydanticAIReAct  # noqa: F401
+from mcpuniverse.agent.pydantic_ai.function_call_wide_research import (
+    PydanticAIFunctionCallWideResearch,  # noqa: F401
+)
+
 
 class AgentManager(BaseBuilder):
     """

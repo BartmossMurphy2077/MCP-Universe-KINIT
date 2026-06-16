@@ -85,7 +85,7 @@ class OpenRouterModel(BaseLLM):
         alias (str): Alias for the model, used for identification.
     """
     config_class = OpenRouterConfig
-    alias = "openrouter"
+    alias = "openrouter_legacy"
     env_vars = ["OPENROUTER_API_KEY"]
 
     def __init__(self, config: Optional[Union[Dict, str]] = None):

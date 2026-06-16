@@ -216,3 +216,68 @@ Phase 0 here is intentionally narrow:
 - Pydantic AI adapter-first migration for Azure + function-call agent.
 - No MCP+ refactor scope expansion beyond what was needed for stability.
 
+---
+
+## Phase 1 progress (Issue #7 — react + wide research + openai/openrouter)
+
+This branch is now extending Phase 0 into Phase 1 (per GitHub issue **#7**), still using an
+adapter-first approach and preserving YAML config compatibility.
+
+### 1) OpenAI + OpenRouter providers (Pydantic AI backed)
+
+Added Pydantic AI-backed providers and registry aliases:
+
+- `mcpuniverse/llm/pydantic_ai/openai.py` (`type: openai`)
+  - legacy alias: `openai_legacy`
+- `mcpuniverse/llm/pydantic_ai/openrouter.py` (`type: openrouter`)
+  - legacy alias: `openrouter_legacy`
+
+And updated exports so `WorkflowBuilder` can resolve the new registry entries.
+
+Validated by tests:
+
+- `tests/poc/test_workflow_openai_registry.py`
+- `tests/poc/test_workflow_openrouter_registry.py`
+
+### 2) ReAct agent (Pydantic AI backed)
+
+Introduced a Pydantic AI-backed ReAct implementation that preserves the legacy
+`{"thought", "action", "answer"}` JSON contract and tool execution via the existing
+`MCPManager` + `call_tool()` plumbing.
+
+Registry aliases:
+
+- `type: react` → `PydanticAIReAct`
+- `type: react_legacy` → legacy `ReAct`
+
+Validated by:
+
+- `tests/poc/test_workflow_react_registry.py`
+- `tests/poc/test_agent_react.py`
+
+### 3) Wide research agent registry swap (minimal adapter-first)
+
+Swapped the registry alias for wide research so that:
+
+- `type: function_call_wide_research` → `PydanticAIFunctionCallWideResearch`
+- `type: function_call_wide_research_legacy` → legacy `FunctionCallWideResearch`
+
+Implementation note: for Phase 1 we started with an adapter-first implementation
+that reuses the existing wide-research prompt contract and runs the LLM via Pydantic AI.
+
+Validated by:
+
+- `tests/poc/test_workflow_wide_research_registry.py`
+
+### 4) Registry robustness: ensure Pydantic AI agents are registered
+
+To avoid relying on package `__init__.py` side-effects, `mcpuniverse/agent/manager.py`
+now imports the Pydantic AI-backed agents so `ComponentABCMeta` registers them
+before `WorkflowBuilder` snapshots the registry.
+
+### 5) Live LLM smoke-test retry
+
+The Phase 0 integration benchmark (`tests/poc/test_benchmark_financial_analysis.py`)
+is a live-LLM smoke test and can be flaky. The test now retries the run once if the
+first attempt fails to get `passed=True`.
+

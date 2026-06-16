@@ -387,6 +387,7 @@ class MCPManager(metaclass=AutodocABCMeta):
         try:
             server_config = ServerConfig.from_dict(config)
             self._server_configs[server_name] = server_config
+            self._raw_configs[server_name] = copy.deepcopy(config)
             params = None if self._context is None else self._context.env
             self.set_params(server_name=server_name, params=params)
             self._logger.info("Successfully updated server configuration: %s", server_name)

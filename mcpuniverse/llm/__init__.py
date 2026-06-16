@@ -2,6 +2,7 @@
 
 from .openai import OpenAIModel
 from .azure import AzureOpenAIModel
+from .pydantic_ai import PydanticAIAzureModel
 from .mistral import MistralModel
 from .claude import ClaudeModel
 from .ollama import OllamaModel
@@ -27,6 +28,7 @@ from .tito import (
 __all__ = [
     "OpenAIModel",
     "AzureOpenAIModel",
+    "PydanticAIAzureModel",
     "MistralModel",
     "ClaudeModel",
     "OllamaModel",

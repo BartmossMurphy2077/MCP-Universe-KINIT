@@ -4,6 +4,7 @@ Adapted from https://github.com/shzhiqi/yahoo-finance-mcp/blob/main/server.py.
 """
 # pylint: disable=broad-exception-caught,too-many-statements,line-too-long,too-many-return-statements,invalid-name
 import json
+from datetime import datetime, timedelta
 from enum import Enum
 
 import click
@@ -112,9 +113,16 @@ def build_server(port: int) -> FastMCP:
             return f"Error: getting historical stock prices for {ticker}: {e}"
 
         # If the company is found, get the historical data
-        hist_data = company.history(start=start_date, end=end_date, interval=interval)
+        # yfinance history() treats end as exclusive; add one day so end_date is inclusive.
+        end_exclusive = (
+            datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        ).strftime("%Y-%m-%d")
+        hist_data = company.history(
+            start=start_date, end=end_exclusive, interval=interval
+        )
         hist_data = hist_data.reset_index(names="Date")
-        hist_data = hist_data.to_json(orient="records", date_format="iso")
+        hist_data["Date"] = pd.to_datetime(hist_data["Date"]).dt.strftime("%Y-%m-%d")
+        hist_data = hist_data.to_json(orient="records")
         return hist_data
 
     @yfinance_server.tool(

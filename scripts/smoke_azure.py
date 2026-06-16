@@ -26,7 +26,7 @@ print(
 
 from mcpuniverse.llm.manager import ModelManager
 
-model = ModelManager().build_model("azure", config={"model_name": deployment})
+model = ModelManager().build_model("azure_legacy", config={"model_name": deployment})
 undefined = model.list_undefined_env_vars()
 if undefined:
     print("FAIL: provider reports undefined:", undefined)

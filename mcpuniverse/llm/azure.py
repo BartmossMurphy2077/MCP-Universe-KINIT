@@ -59,7 +59,7 @@ class AzureOpenAIModel(OpenAIModel):
     AzureOpenAI instead of OpenAI.
     """
     config_class = AzureOpenAIConfig
-    alias = "azure"
+    alias = "azure_legacy"
     env_vars = ["AZURE_API_KEY", "AZURE_API_BASE"]
 
     def __init__(self, config: Optional[Union[Dict, str]] = None):

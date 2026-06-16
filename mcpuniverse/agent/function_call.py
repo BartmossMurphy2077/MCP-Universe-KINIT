@@ -57,7 +57,7 @@ class FunctionCall(BaseAgent):
         alias (List[str]): Alternative names for this agent type.
     """
     config_class = FunctionCallConfig
-    alias = ["function_call", "fc", "function-call"]
+    alias = ["function_call_legacy", "fc_legacy", "function-call-legacy"]
 
     def __init__(
             self,

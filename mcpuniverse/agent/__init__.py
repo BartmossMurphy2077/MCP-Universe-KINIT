@@ -1,4 +1,5 @@
 from .function_call import FunctionCall
+from .pydantic_ai import PydanticAIFunctionCall
 from .function_call_wide import FunctionCallWideResearch
 from .function_call_wide_claude import FunctionCallWideResearchClaude
 from .basic import BasicAgent
@@ -14,6 +15,7 @@ from .react_train_agent import ReActTrain
 
 __all__ = [
     "FunctionCall",
+    "PydanticAIFunctionCall",
     "FunctionCallWideResearch",
     "FunctionCallWideResearchClaude",
     "BasicAgent",

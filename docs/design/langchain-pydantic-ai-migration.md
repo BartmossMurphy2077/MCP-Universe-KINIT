@@ -1,13 +1,15 @@
-# Design: LangChain + Pydantic AI Migration
+# Design: Pydantic AI Migration (adapter-first)
 
-> Status: **Proposed** (grill session + PRD, June 2026)  
+> Status: **Proposed** (grill sessions + PRD, June 2026)  
 > Deliverable type: ADR + POC, then phased implementation
 
 ## Summary
 
-Migrate MCP-Universe's agent and LLM layers onto mainstream open-source stacks (**Pydantic AI** for agent runtime, **LangChain Deep Agents** for sandboxes and CodeMode) while preserving the benchmark infrastructure, custom MCP client layer, tracing, and existing YAML configurations.
+Migrate MCP-Universe's agent and LLM layers onto **Pydantic AI** (agent runtime + code-mode) while preserving the benchmark infrastructure, custom MCP client layer, tracing, and existing YAML configurations.
 
-**Strategy: adapter-first, not rewrite.**
+Code-mode is owned by **Pydantic AI Code Mode** (the Monty in-process Python sandbox), not LangChain. **LangChain Deep Agents** is a *deferred, optional* remote-sandbox backend only (Modal/Daytona/Runloop/LocalShell), used solely if a benchmark ever needs remote shell/filesystem execution that Monty deliberately forbids. The LangChain QuickJS interpreter is **not** adopted (redundant with Monty).
+
+**Strategy: adapter-first, not rewrite. YAML compatibility via registry swap.**
 
 ---
 
@@ -90,43 +92,44 @@ The assigned task is to **analyze and prove viability** of migrating to LangChai
 
 | Concern | Owner | Rationale |
 |---------|-------|-----------|
-| Agent loop, tool calling, structured outputs | **Pydantic AI** | Native MCP client support; fits existing Pydantic v2 usage |
-| LLM providers (OpenAI, OpenRouter, vLLM, SGLang) | **Pydantic AI** via provider factory | One `OpenAIProvider(base_url=…)` covers local + OpenRouter |
-| Sandbox environment creation | **LangChain Deep Agents** | Setup scripts, `execute`, filesystem; provider ecosystem |
-| CodeMode / PTC (context reduction) | **LangChain Deep Agents** interpreter | Agent writes code calling tools; only finals enter history |
-| MCP tool transport, permissions, gateway | **Custom MCPClient** | Domain logic not in generic OSS clients |
+| Agent loop, tool calling, structured outputs | **Pydantic AI** | Fits existing Pydantic v2 usage |
+| LLM providers (OpenAI, Azure, OpenRouter, + later local) | **Pydantic AI** via internal provider factory | One `OpenAIProvider(base_url=…)` covers azure/openrouter/OpenAI-compatible local |
+| Code-mode / PTC (context reduction) | **Pydantic AI Code Mode (Monty)** | Python sandbox, same framework as the runtime; matches Python tools/evaluators |
+| MCP tool transport, permissions, gateway | **Custom MCPClient** (adapter on top) | Domain logic not in generic OSS clients |
 | Benchmarks, evaluators, tasks | **Unchanged** | Only need `Executor.execute()` contract |
+| Remote shell/filesystem sandboxes | **LangChain Deep Agents** (deferred, optional) | Only if a benchmark needs fs/network Monty forbids |
 
-### env_pool vs LangChain Sandboxes
+### Execution environments (hybrid)
 
-| | env_pool | LangChain Sandbox |
-|---|----------|-------------------|
-| **Isolates** | Full MCP stack (Gateway + servers) | Generic shell + filesystem |
-| **Use for** | Playwright, Postgres, Blender benchmarks; RL docker_pool | CodeMode, ad-hoc code, setup scripts |
-| **Integration** | Keep; optionally wrap as custom `BaseSandbox` backend | Use for non-MCP code execution paths |
+| | env_pool | Monty (Code Mode) | `python-code-sandbox` MCP | LangChain remote sandbox |
+|---|----------|-------------------|---------------------------|--------------------------|
+| **Isolates** | Full MCP stack (Gateway + servers) | In-process Python subset, no fs/net | Docker Python exec | Remote shell + filesystem |
+| **Use for** | Playwright, Postgres, Blender; RL docker_pool | Programmatic tool calling / context reduction | General Python execution as a tool | *(deferred)* fs/net-heavy code |
+| **Status** | Keep | Adopt (Code Mode phase) | Keep | Deferred / optional |
 
-### MCP+ vs CodeMode (CE)
+### MCP+ vs Code Mode (CE)
 
-| | MCP+ | CodeMode / PTC |
-|---|------|----------------|
-| **Layer** | MCP transport (wrapper on tool output) | Agent (interpreter middleware) |
-| **Trigger** | Tool response exceeds token threshold | Model/agent supports programmatic tool calling |
-| **Verdict** | **Keep** — refactor PostProcessAgent onto Pydantic AI | **Add** — not a replacement |
+| | MCP+ | Code Mode / PTC (Monty) |
+|---|------|-------------------------|
+| **Layer** | MCP transport (wrapper on tool output) | Agent runtime (Pydantic AI capability) |
+| **Trigger** | Single tool response exceeds token threshold | Model can write competent Python |
+| **Strength** | Model-agnostic; one huge payload | Multi-call workflows; intermediate results stay out of context |
+| **Verdict** | **Keep** as fallback — refactor PostProcessAgent onto Pydantic AI | **Add** — complementary, not a replacement |
 
-**Unified context layer (Decision D):** try CodeMode when supported; fall back to MCP+; deprecate duplicate `summarize_tool_response` paths over time.
+**Unified context layer:** try Code Mode when the model supports it; fall back to MCP+ for single oversized payloads and non-code-mode models; deprecate duplicate `summarize_tool_response` paths over time. MCP+ itself is kept.
 
-### LLM provider factory (Decision D)
+### LLM provider factory
 
-Single component kind with a `provider` discriminator:
+An **internal** factory builds a Pydantic AI model for OpenAI-family providers. The new model classes **claim the legacy aliases via the registry** (registry swap) — there is no external `pydantic_ai` type and no WorkflowBuilder routing table.
 
-| provider | Backend |
-|----------|---------|
-| `openai` | OpenAI API via Pydantic AI OpenAIChatModel |
-| `openrouter` | OpenAI-compatible base URL |
-| `vllm_local` | OpenAI-compatible local server |
-| `sglang_local` | Same as vllm_local (alias, different env vars) |
+| alias (unchanged in YAML) | Backend | Phase |
+|----------|---------|-------|
+| `azure` | Azure OpenAI via Pydantic AI OpenAI provider | POC |
+| `openai` | OpenAI API | Phase 1 |
+| `openrouter` | OpenAI-compatible base URL | Phase 1 |
+| `vllm_local` / `sglang_local` | OpenAI-compatible local server | Deferred phase |
 
-WorkflowBuilder maps legacy `type: openai` → internal `pydantic_ai` + `provider: openai`.
+Legacy classes are renamed to `azure_legacy`, `openai_legacy`, etc., and kept for rollback/comparison.
 
 ---
 
@@ -134,39 +137,47 @@ WorkflowBuilder maps legacy `type: openai` → internal `pydantic_ai` + `provide
 
 ### Phase 0 — POC (deliverable for analysis task)
 
-- [ ] Provider factory: `pydantic_ai` + `provider: openai`
-- [ ] Pydantic AI `function_call` agent behind legacy `type: function_call`
-- [ ] MCPClient adapter as Pydantic AI toolset
-- [ ] WorkflowBuilder transparent routing
-- [ ] Tracing adapters at `execute()` boundary
-- [ ] One benchmark domain end-to-end (financial_analysis recommended)
-- [ ] MCP+ fallback only; CodeMode deferred
+- [ ] Internal provider factory; new Pydantic AI model claims `azure` alias (legacy → `azure_legacy`)
+- [ ] Pydantic AI `function_call` agent claims `function_call` alias (legacy → `function_call_legacy`)
+- [ ] MCPClient adapter exposing tools as Pydantic AI tools (`server__tool` preserved)
+- [ ] Tracing adapters emitting legacy-shaped `agent/llm/tool` records at `execute()` boundary
+- [ ] `financial_analysis` end-to-end, YAML unchanged, `provider: azure`
+- [ ] Code Mode and MCP+ refactor deferred (MCP+ untouched)
 
-**POC pass:** existing pytest benchmark test passes; YAML unchanged; trace/report shape compatible.
+**POC pass:** `financial_analysis` integration test (gated by `skipif AZURE_API_KEY`) runs; `yfinance_task_0001` reports `passed=True`; `BenchmarkReport.dump()` succeeds; YAML unchanged.
 
-### Phase 1 — Benchmark agents
+### Phase 1 — Benchmark agents + cloud providers
 
-- [ ] Migrate `react` agent (critical for local LLMs without reliable native tool calling)
+- [ ] Migrate `react` agent
 - [ ] Migrate wide research agent
-- [ ] All four LLM providers via factory
-- [ ] Provider tests following existing LLM test patterns
+- [ ] `openai` + `openrouter` providers via factory (registry swap)
+- [ ] Provider + agent tests following existing patterns
 
-### Phase 2 — Context layer
+### Phase 2 — Code Mode + unified context layer
 
-- [ ] Refactor MCP+ PostProcessAgent onto Pydantic AI
-- [ ] LangChain CodeMode / PTC middleware for supported models
-- [ ] Unified context middleware module (CodeMode → MCP+ fallback chain)
-- [ ] Deprecation path for `summarize_tool_response`
+- [ ] Add `pydantic-ai-harness[code-mode]` (Monty)
+- [ ] Code Mode for capable models, MCP tools wrapped `native=False`
+- [ ] Unified context middleware (Code Mode → MCP+ fallback chain)
+- [ ] Deprecation path for duplicate `summarize_tool_response`
 
-### Phase 3 — Sandboxes
+### Phase 3 — MCP+ refactor
 
-- [ ] Custom `BaseSandbox` backend wrapping env_pool
-- [ ] LangChain sandbox integration for CodeMode execution
-- [ ] Evaluate cloud providers (Modal, Daytona, Runloop) if needed
+- [ ] Refactor MCP+ `PostProcessAgent` onto Pydantic AI
+- [ ] Keep `mcp-build-plus` CLI + wrapper configs working
 
-### Phase 4 — Cleanup
+### Phase 4 — Local LLMs
 
-- [ ] Deprecate legacy BaseLLM internals (keep aliases)
+- [ ] `vllm_local`/`sglang_local` via OpenAI-compatible Pydantic AI provider
+- [ ] Verify served endpoint native tool calling; react-parse fallback if unreliable
+
+### Phase 5 — Sandboxes (deferred, optional)
+
+- [ ] Only if a benchmark needs remote shell/fs: evaluate LangChain remote sandbox (Modal/Daytona/Runloop/LocalShell)
+- [ ] Optional: wrap env_pool as a custom `BaseSandbox` backend
+
+### Phase 6 — Cleanup
+
+- [ ] Deprecate legacy `*_legacy` internals (keep aliases)
 - [ ] Optional: migrate tracing to Pydantic AI / Logfire
 - [ ] Documentation update
 
@@ -178,9 +189,9 @@ These seams must not break during migration:
 
 1. **Executor** — `async execute(message) -> AgentResponse`
 2. **BenchmarkRunner.run()** — accepts trace_collector, returns benchmark results
-3. **WorkflowBuilder** — loads multi-doc YAML, resolves `kind: llm | agent | workflow`
+3. **WorkflowBuilder** — loads multi-doc YAML, resolves `kind: llm | agent | workflow`; new classes claim aliases via `ComponentABCMeta`
 4. **MCPClient.execute_tool()** — tool naming `server__tool`
-5. **BenchmarkReport** — consumes trace collector output
+5. **BenchmarkReport** — consumes trace collector output (`agent/llm/tool` records)
 
 ---
 
@@ -191,38 +202,40 @@ Tests at the **highest seam possible** — external behavior, not implementation
 | Seam | What to assert | Prior art |
 |------|----------------|-----------|
 | BenchmarkRunner + YAML | Full run completes; evaluation results present | `tests/benchmark/mcpuniverse/test_benchmark_*.py` |
-| WorkflowBuilder routing | Legacy `type:` instantiates Pydantic AI-backed agent | `tests/workflow/test_workflow_builder_azure.py` |
-| Provider factory | Each provider generates valid responses | `tests/llm/test_openai.py`, `test_openrouter.py`, `test_local_llm.py` |
+| Registry resolution | Legacy `type:` instantiates Pydantic AI-backed class; `*_legacy` resolves to old | `tests/workflow/test_workflow_builder_azure.py` |
+| Provider factory | Each provider generates valid responses | `tests/llm/test_openai.py`, `test_openrouter.py` |
 | Agent execute | Returns AgentResponse; calls tools via MCP | `tests/agent/test_function_call.py` |
-| Tracing | FileCollector records trace IDs used by report | `tests/tracer/test_tracer.py` |
+| Tracing | FileCollector records trace IDs used by report; `dump()` succeeds | `tests/tracer/test_tracer.py` |
 | MCP+ context layer | Large tool output compressed | `tests/extensions/mcpplus/integration/test_integration.py` |
 
-POC minimum: one benchmark integration test green with `provider: openai`.
+POC minimum: `financial_analysis` integration test green with `provider: azure`, `yfinance_task_0001` passing, gated by `skipif AZURE_API_KEY`.
 
 ---
 
 ## Open questions
 
-1. **Local LLM agent pairing** — auto-route `vllm_local`/`sglang_local` to `react` when native tool calling is unreliable?
-2. **Cloud sandbox providers** — Modal/Daytona accounts available, or Docker-only?
-3. **Azure provider** — include in factory as `provider: azure` alongside openai?
+1. **Local LLM tool calling** — do served vllm/sglang endpoints support native tool calling, or do we need react-parse fallback? (Phase 4)
+2. **Remote sandbox providers** — is any benchmark ever going to need Modal/Daytona/Runloop, or is env_pool + `python-code-sandbox` MCP sufficient? (Phase 5, deferred)
 
 ---
 
-## Decision log (grill session)
+## Decision log (grill sessions)
 
 | # | Decision |
 |---|----------|
 | 1 | Maintainability > benchmark parity |
-| 2 | Pydantic AI primary; LangChain for sandboxes + CodeMode |
-| 3 | Hybrid sandboxes: env_pool + LangChain |
-| 4 | Unified context layer: CodeMode + MCP+ fallback |
-| 5 | Keep MCPClient; adapters only |
-| 6 | Phase 1 agents: function_call, react, wide research |
-| 7 | LLM: pydantic_ai provider factory |
-| 8 | YAML: WorkflowBuilder transparent routing |
-| 9 | Tracing: adapters at execute() |
-| 10 | Deliverable: ADR + POC |
+| 2 | **Adapter-first**, not full rewrite |
+| 3 | Pydantic AI owns runtime **and code-mode**; LangChain deferred optional remote sandbox only |
+| 4 | Code-mode engine = **Pydantic AI Code Mode (Monty)**; no LangChain QuickJS interpreter |
+| 5 | Unified context layer: Code Mode primary + MCP+ fallback (both kept, complementary) |
+| 6 | Keep MCPClient; adapters only; `server__tool` preserved |
+| 7 | YAML compat via **registry swap** (`function_call`→`function_call_legacy`, `azure`→`azure_legacy`); no routing table |
+| 8 | Internal provider factory; POC proves `azure`; openai/openrouter Phase 1; local deferred |
+| 9 | Tracing: legacy-shaped `agent/llm/tool` records via adapters at execute(); no BenchmarkReport changes |
+| 10 | POC: `financial_analysis`, YAML unchanged, `yfinance_task_0001` passes, `skipif AZURE_API_KEY` |
+| 11 | Deps: `pydantic-ai-slim[openai]` for POC; `pydantic-ai-harness[code-mode]` at Code Mode phase |
+| 12 | MCP+ `PostProcessAgent` refactor is its own phase (out of POC) |
+| 13 | Deliverable: ADR + POC; umbrella issue #3 + per-phase child issues |
 
 ---
 

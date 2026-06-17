@@ -1,5 +1,9 @@
 """
 Build Pydantic AI tools that delegate to MCPClient via BaseAgent.call_tool.
+
+These are local (non-provider-native) tool handlers — the equivalent of
+``native=False`` for MCP in Pydantic AI Harness Code Mode, so tools route
+through the local toolset into the Monty sandbox instead of server-side execution.
 """
 from __future__ import annotations
 

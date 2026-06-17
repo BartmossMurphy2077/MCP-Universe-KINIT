@@ -16,17 +16,19 @@ Goals throughout:
 | Area | Default YAML `type` | Pydantic AI implementation | Legacy escape hatch | Phase | Status |
 |------|---------------------|----------------------------|---------------------|-------|--------|
 | Azure LLM | `azure` | `PydanticAIAzureModel` | `azure_legacy` | 0 | Done (merged) |
-| OpenAI LLM | `openai` | `PydanticAIOpenAIModel` | `openai_legacy` | 1 | Done (this branch) |
-| OpenRouter LLM | `openrouter` | `PydanticAIOpenRouterModel` | `openrouter_legacy` | 1 | Done (this branch) |
+| OpenAI LLM | `openai` | `PydanticAIOpenAIModel` | `openai_legacy` | 1 | Done (merged) |
+| OpenRouter LLM | `openrouter` | `PydanticAIOpenRouterModel` | `openrouter_legacy` | 1 | Done (merged) |
 | Function-call agent | `function_call` | `PydanticAIFunctionCall` | `function_call_legacy` | 0 | Done (merged) |
-| ReAct agent | `react` | `PydanticAIReAct` | `react_legacy` | 1 | Done (this branch) |
+| ReAct agent | `react` | `PydanticAIReAct` | `react_legacy` | 1 | Done (merged) |
 | Wide research agent | `function_call_wide_research` | `PydanticAIFunctionCallWideResearch` | `function_call_wide_research_legacy` | 1 | Minimal adapter |
 | Wide research (Claude) | `function_call_wide_claude` | — | legacy only | — | Not started |
 | Other LLMs (Mistral, etc.) | various | — | legacy only | 3+ | Not started |
-| LangChain integration | — | — | deferred | 4 (#11) | Not started |
-| MCP+ / Code Mode | — | — | — | 2 (#8) | Not started |
+| LangChain integration | — | — | deferred | 5 (#11) | Not started |
+| Unified context layer | `context_layer` YAML | `mcpuniverse/context/` | — | 2 | In progress (PR #8) |
+| Code Mode (Monty) | via `context_layer` | `CodeMode()` harness | direct path | 2 | In progress (PR #8) |
+| MCP+ fallback | via `context_layer` | `MCPWrapperManager` | legacy summarize | 2 | In progress (PR #8) |
 
-**Test suite (`tests/poc/`):** 17 tests — 16 always runnable, 1 live Azure benchmark (skipped without `AZURE_API_KEY`).
+**Test suite (`tests/poc/` + MCP+ integration):** 29 tests passing (20 POC + 9 MCP+ integration).
 
 ---
 
@@ -35,7 +37,8 @@ Goals throughout:
 | Phase | Branch | PR | Closes | Base | Status |
 |-------|--------|-----|--------|------|--------|
 | 0 | `feat/3-pydantic-ai-langchain-migration` | [#12](https://github.com/BartmossMurphy2077/MCP-Universe-KINIT/pull/12) | #6 | `complete-refactor` | Merged |
-| 1 | `feat/7-phase-1-pydantic-ai-providers-agents` | [#13](https://github.com/BartmossMurphy2077/MCP-Universe-KINIT/pull/13) | #7 | `complete-refactor` | Open |
+| 1 | `feat/7-phase-1-pydantic-ai-providers-agents` | [#13](https://github.com/BartmossMurphy2077/MCP-Universe-KINIT/pull/13) | #7 | `complete-refactor` | Merged |
+| 2 | `feat/8-phase-2-code-mode-context-layer` | (this PR) | #8 | `complete-refactor` | Open |
 
 Umbrella tracking issue: **#3** (PRD). Later phases: **#8** (Code Mode), **#9** (MCP+), **#10** (local LLMs), **#11** (LangChain deferred).
 
@@ -62,6 +65,7 @@ WorkflowBuilder ──► ModelManager / AgentManager (registry aliases)
 
 | Path | Purpose |
 |------|---------|
+| `mcpuniverse/context/` | Unified context layer (Code Mode + MCP+ fallback) |
 | `mcpuniverse/llm/pydantic_ai/` | Pydantic AI-backed LLM providers |
 | `mcpuniverse/agent/pydantic_ai/` | Pydantic AI-backed agents + MCP adapter |
 | `tests/poc/` | All migration POC / phase tests (centralized) |
@@ -216,6 +220,53 @@ Files: `tests/poc/smoke_phase1_workflows.py`, `tests/poc/smoke_tasks/*.json`
 
 ---
 
+## Phase 2 — Code Mode + unified context layer (issue #8)
+
+**Branch:** `feat/8-phase-2-code-mode-context-layer`
+
+### Unified context layer
+
+**Package:** `mcpuniverse/context/`
+
+| YAML block | Purpose |
+|------------|---------|
+| `context_layer.mode` | `auto` \| `code_mode` \| `mcp_plus` \| `direct` |
+| `context_layer.code_mode_enabled` | Enable Code Mode when model supports it |
+| `context_layer.mcp_plus_enabled` | Enable MCP+ fallback when Code Mode unavailable |
+| `context_layer.token_threshold` | Token threshold for MCP+ summarization (default 2000) |
+
+**Auto strategy:** picks Code Mode for capable models (gpt-4/5, claude prefixes); falls back to MCP+ otherwise.
+
+### Code Mode integration
+
+**File:** `mcpuniverse/agent/pydantic_ai/code_mode.py`
+
+- Uses `pydantic-ai-harness[code-mode]` optional extra (`pip install -e ".[code-mode]"`)
+- Adds `CodeMode()` capability to Pydantic AI `Agent` when strategy resolves to `code_mode`
+
+### MCP+ fallback
+
+**File:** `mcpuniverse/context/mcp_plus.py`
+
+- `activate_mcp_plus_fallback()` wires `MCPWrapperManager` during agent `initialize()`
+- Reuses existing MCP+ integration tests
+
+### Function-call agent wiring
+
+`PydanticAIFunctionCall` reads `context_layer` from `FunctionCallConfig` and applies the selected strategy at agent construction / init.
+
+**Tests:**
+
+| File | What it proves |
+|------|----------------|
+| `test_context_layer.py` | Strategy resolution, YAML config parsing |
+| `test_agent_function_call_code_mode.py` | Code Mode capability on function-call agent |
+| `test_context_mcp_plus_fallback.py` | MCP+ fallback activation path |
+
+**Optional dependency note:** `pydantic-ai-harness` requires newer `pydantic-ai-slim` / `openai` than the main pin set; kept as optional `[code-mode]` extra. Code Mode tests use `pytest.importorskip("pydantic_ai_harness")`.
+
+---
+
 ## How to run locally
 
 ### Prerequisites
@@ -297,12 +348,15 @@ asyncio.run(main())
 | `test_workflow_react_registry.py` | `react` / `react_legacy` resolution |
 | `test_workflow_wide_research_registry.py` | `function_call_wide_research` / legacy resolution |
 | `test_benchmark_financial_analysis.py` | End-to-end: Azure + function_call + yfinance task (live LLM) |
+| `test_context_layer.py` | Context strategy resolution + YAML config |
+| `test_agent_function_call_code_mode.py` | Code Mode capability on function-call agent |
+| `test_context_mcp_plus_fallback.py` | MCP+ fallback activation |
 | `helpers.py` | `mcp_manager_with_local_python()` — Windows-friendly stdio MCP |
 | `smoke_phase1_workflows.py` | Optional live workflow smoke (see above) |
 
 ---
 
-## File change map (Phase 0 + Phase 1 on this branch)
+## File change map (Phase 0 + Phase 1 + Phase 2 on this branch)
 
 ### New files
 
@@ -320,7 +374,14 @@ tests/poc/
   test_agent_react.py
   smoke_phase1_workflows.py          # optional local smoke
   smoke_tasks/react_calculator.json
-  smoke_tasks/wide_calculator.json
+mcpuniverse/context/
+  __init__.py, layer.py, mcp_plus.py
+mcpuniverse/agent/pydantic_ai/
+  code_mode.py
+tests/poc/
+  test_context_layer.py
+  test_agent_function_call_code_mode.py
+  test_context_mcp_plus_fallback.py
 ```
 
 ### Modified files
@@ -337,7 +398,11 @@ mcpuniverse/agent/pydantic_ai/__init__.py
 mcpuniverse/agent/pydantic_ai/function_call.py  # uses response.py
 mcpuniverse/mcp/manager.py             # _raw_configs sync (Phase 0)
 mcpuniverse/mcp/servers/yahoo_finance/server.py # date fixes (Phase 0)
-tests/poc/test_benchmark_financial_analysis.py  # retry logic
+mcpuniverse/agent/function_call.py       # context_layer field on FunctionCallConfig
+mcpuniverse/agent/pydantic_ai/function_call.py  # context strategy wiring
+mcpuniverse/agent/pydantic_ai/mcp_tools.py
+mcpuniverse/agent/pydantic_ai/tracing.py # null-safe usage in summarize_run_for_trace
+pyproject.toml                           # optional [code-mode] extra
 ```
 
 ### Removed
@@ -359,12 +424,11 @@ mcpuniverse/agent/__init__.py          # replaced by manager.py eager imports
 
 ---
 
-## What's next (not in Phase 1)
+## What's next (not in Phase 2)
 
 | Issue | Scope |
 |-------|-------|
-| #8 | Code Mode |
-| #9 | MCP+ integration |
+| #9 | MCP+ deeper integration |
 | #10 | Local LLMs (Ollama, vLLM) |
 | #11 | LangChain (deferred) |
 
@@ -372,6 +436,8 @@ Within the Pydantic AI migration itself, likely next slices:
 
 - Full wide-research scheduler port
 - `function_call_wide_claude`
+- Wire context layer into ReAct / wide research agents
+- Live Code Mode benchmark + token reduction metrics
 - Remaining LLM providers (one vertical slice per provider, same registry pattern)
 - Remove legacy paths once all benchmarks pass on Pydantic AI defaults
 

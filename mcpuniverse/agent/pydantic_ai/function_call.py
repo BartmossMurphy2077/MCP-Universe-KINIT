@@ -17,6 +17,14 @@ from mcpuniverse.llm.pydantic_ai.base import PydanticAIBaseLLM
 from mcpuniverse.mcp.manager import MCPManager
 from mcpuniverse.tracer import Tracer
 
+from mcpuniverse.context.layer import (
+    ContextStrategy,
+    UnifiedContextConfig,
+    resolve_context_strategy,
+)
+from mcpuniverse.context.mcp_plus import activate_mcp_plus_fallback
+
+from .code_mode import build_code_mode_capabilities
 from .mcp_tools import build_mcp_pydantic_tools
 from .response import normalize_agent_output
 from .tracing import build_messages_for_trace, emit_llm_trace, summarize_run_for_trace
@@ -46,6 +54,32 @@ class PydanticAIFunctionCall(BaseAgent):
         self._pydantic_llm: PydanticAIBaseLLM = llm
         self._run_tracer: Optional[Tracer] = None
         self._run_callbacks = None
+        raw_config = config if isinstance(config, dict) else {}
+        self._context_layer_config = UnifiedContextConfig.from_agent_config(raw_config)
+
+    async def initialize(self, mcp_servers: Optional[List[dict]] = None):
+        strategy = self.resolve_context_strategy()
+        self._context_strategy = strategy
+        if strategy == ContextStrategy.MCP_PLUS:
+            self._mcp_manager = self._prepare_mcp_manager_for_context(strategy)
+        await super().initialize(mcp_servers=mcp_servers)
+
+    def resolve_context_strategy(self) -> ContextStrategy:
+        """Resolve the unified context strategy for this agent run."""
+        model_name = getattr(self._pydantic_llm.config, "model_name", "")
+        return resolve_context_strategy(
+            context_config=self._context_layer_config,
+            model_name=model_name,
+        )
+
+    def _prepare_mcp_manager_for_context(self, strategy: ContextStrategy) -> MCPManager:
+        if strategy == ContextStrategy.MCP_PLUS:
+            return activate_mcp_plus_fallback(
+                self._mcp_manager,
+                self._llm,
+                token_threshold=self._context_layer_config.token_threshold,
+            )
+        return self._mcp_manager
 
     def _build_user_prompt(self, message: str) -> str:
         params = {
@@ -79,13 +113,18 @@ class PydanticAIFunctionCall(BaseAgent):
         self._run_tracer = tracer
         self._run_callbacks = callbacks
 
+        strategy = self.resolve_context_strategy()
+        self._context_strategy = strategy
+
         user_prompt = self._build_user_prompt(message)
         pydantic_tools = build_mcp_pydantic_tools(self)
         model = self._pydantic_llm.build_pydantic_ai_model()
+        capabilities = build_code_mode_capabilities(strategy)
         agent = Agent(
             model,
             instructions=self._config.instruction,
             tools=pydantic_tools,
+            capabilities=capabilities or None,
         )
 
         result = await agent.run(user_prompt)

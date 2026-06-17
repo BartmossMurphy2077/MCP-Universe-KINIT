@@ -8,7 +8,7 @@ import os
 import re
 import json
 from typing import Optional, Union, Dict, List, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from mcp.types import TextContent, Tool
 
 from mcpuniverse.mcp.manager import MCPManager
@@ -42,6 +42,7 @@ class FunctionCallConfig(BaseAgentConfig):
     context_examples: str = ""
     max_iterations: int = 5
     summarize_tool_response: bool = False
+    context_layer: dict = field(default_factory=dict)
 
 
 class FunctionCall(BaseAgent):

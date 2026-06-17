@@ -31,13 +31,16 @@ def emit_llm_trace(
 def summarize_run_for_trace(result: AgentRunResult) -> Any:
     """Extract a JSON-serializable response payload from a Pydantic AI run."""
     usage = result.usage() if callable(result.usage) else result.usage
-    return {
-        "output": result.output,
-        "usage": {
+    usage_payload = None
+    if usage is not None:
+        usage_payload = {
             "input_tokens": usage.input_tokens,
             "output_tokens": usage.output_tokens,
             "requests": usage.requests,
-        },
+        }
+    return {
+        "output": result.output,
+        "usage": usage_payload,
     }
 
 

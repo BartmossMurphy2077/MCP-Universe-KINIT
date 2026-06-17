@@ -1,0 +1,16 @@
+{
+  "category": "smoke",
+  "question": "What is 17 times 23? You may use the calculator tool. Reply with the numeric result only in your final answer.",
+  "mcp_servers": [
+    {
+      "name": "calculator"
+    }
+  ],
+  "evaluators": [
+    {
+      "func": "raw",
+      "op": "contain",
+      "value": "391"
+    }
+  ]
+}

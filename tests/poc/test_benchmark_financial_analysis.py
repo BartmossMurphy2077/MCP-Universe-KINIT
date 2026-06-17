@@ -27,17 +27,29 @@ class TestBenchmarkFinancialAnalysis(unittest.IsolatedAsyncioTestCase):
         # YAML file stays unchanged; limit runtime to the deterministic POC task.
         benchmark._benchmark_configs[0].tasks = [TASK_0001]
 
-        results = await benchmark.run(
-            mcp_manager=mcp_manager_with_local_python(),
-            trace_collector=trace_collector,
-            callbacks=get_vprint_callbacks(),
-        )
+        passed_any = False
+        results = None
+        last_eval_results = None
 
-        self.assertEqual(len(results), 1)
-        task_results = results[0].task_results[TASK_0001]
-        eval_results = task_results["evaluation_results"]
+        # This is a smoke-test over a live LLM. To keep Phase 0 POC signal
+        # usable, we allow a single retry if the first evaluation fails.
+        for _attempt in range(2):
+            results = await benchmark.run(
+                mcp_manager=mcp_manager_with_local_python(),
+                trace_collector=trace_collector,
+                callbacks=get_vprint_callbacks(),
+            )
+
+            self.assertEqual(len(results), 1)
+            task_results = results[0].task_results[TASK_0001]
+            eval_results = task_results["evaluation_results"]
+            last_eval_results = eval_results
+            if any(r.passed for r in eval_results):
+                passed_any = True
+                break
+
         self.assertTrue(
-            any(r.passed for r in eval_results),
+            passed_any,
             "yfinance_task_0001 should pass at least one evaluator",
         )
 

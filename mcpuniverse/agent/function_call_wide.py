@@ -60,7 +60,11 @@ class FunctionCallWideResearch(BaseAgent):
         alias (List[str]): Alternative names for this agent type.
     """
     config_class = FunctionCallConfig
-    alias = ["function_call_wide_research", "fc_wide_research", "function-call-wide-research"]
+    alias = [
+        "function_call_wide_research_legacy",
+        "fc_wide_research_legacy",
+        "function-call-wide-research-legacy",
+    ]
 
     def __init__(
             self,

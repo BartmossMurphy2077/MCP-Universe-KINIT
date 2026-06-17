@@ -64,7 +64,7 @@ class OpenAIModel(BaseLLM):
         alias (str): Alias for the model, used for identification.
     """
     config_class = OpenAIConfig
-    alias = "openai"
+    alias = "openai_legacy"
     env_vars = ["OPENAI_API_KEY"]
 
     def __init__(self, config: Optional[Union[Dict, str]] = None):

@@ -117,7 +117,7 @@ graph TD
         N4["agent/pydantic_ai/* (refactor branch)"]
         N5["context/* unified layer (feat/8)"]
         N6["scripts/*, smoke_*.py operator tooling"]
-        N7["docs/design/*, .scratch PRDs"]
+        N7["my_docs/design, .scratch PRDs"]
     end
     subgraph Changed["Behaviorally changed"]
         C1["evaluator judges route via ModelManager"]
@@ -184,7 +184,7 @@ mindmap
 | Debt | Where | Risk |
 |------|-------|------|
 | Two divergent runtimes, unmerged | `main` vs `complete-refactor` | High — maintenance & drift |
-| Docs describe unbuilt-on-`main` features | `docs/design/*` on `main` | Medium — onboarding confusion |
+| Docs describe unbuilt-on-`main` features | `my_docs/design/` + tracker | Medium — onboarding confusion |
 | Wide research stub on canonical alias | `pydantic_ai/function_call_wide_research.py` | High — deep-research suites |
 | Code Mode capability gate vs Azure deployment names | `context/layer.py` | High on fork's primary provider |
 | Fragile judge verdict parsing, untraced judges | `evaluator/google_search` | Medium |
@@ -197,7 +197,7 @@ mindmap
 ## 8. Areas requiring future cleanup (recommended order)
 
 1. **Decide the runtime story.** Either finish + merge `complete-refactor` into `main`, or freeze it. The two-architecture state is the dominant risk.
-2. **Reconcile docs with `main`.** Mark `docs/design/*` as "future / on refactor branch" so readers of `main` aren't misled.
+2. **Reconcile docs with `main`.** Mark `my_docs/design/` and the migration tracker as "future / on refactor branch" so readers of `main` aren't misled.
 3. **Finish wide research** before it ships on the canonical alias, or revert that alias to legacy until ported.
 4. **Fix Code Mode capability detection** for Azure deployment names (don't rely on model-name prefixes), and resolve the harness pin conflict before treating Code Mode as real.
 5. **Harden the judge** — structured-output parsing for `google_search` (mirror `deepresearch`), and trace judge calls (PRD User Story 28).

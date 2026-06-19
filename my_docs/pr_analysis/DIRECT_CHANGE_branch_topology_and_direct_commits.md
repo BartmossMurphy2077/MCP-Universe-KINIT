@@ -77,11 +77,11 @@ This is a deliberate phasing decision (PR #12 body: *"Targets the `complete-refa
 
 Not a bypass (they came through PR #5), but worth flagging because they describe work that is **not on `main`**:
 
-* `docs/design/langchain-pydantic-ai-migration.md` + `prd-langchain-pydantic-ai-migration.md` — describe the Pydantic AI migration that lives on `complete-refactor`.
+* `my_docs/design/langchain-pydantic-ai-migration.md` + `my_docs/design/prd-langchain-pydantic-ai-migration.md` — describe the Pydantic AI migration that lives on `complete-refactor`.
 * `.scratch/azure-migration-complete/prd-issue.md` — the Azure migration PRD.
 * `.cursor/mcp.json`, agent-skill `.gitignore` entries — local tooling.
 
-So `main`'s documentation **forward-references** an architecture that `main`'s code does not contain. A new engineer reading `docs/design/` on `main` will expect Pydantic AI and find the legacy stack. This documentation/code mismatch is the single most likely source of confusion in the fork.
+So documentation under `my_docs/` **forward-references** an architecture that `main`'s code does not contain. A new engineer reading migration design on `main` will expect Pydantic AI and find the legacy stack. This documentation/code mismatch is the single most likely source of confusion in the fork.
 
 ---
 
@@ -109,5 +109,5 @@ mindmap
 |---------|----------|----------|
 | Fork never re-synced with upstream | Medium (drift, missing security fixes) | merge-base `1861b36`, no upstream merges in `main..HEAD` |
 | Migration lives only on `complete-refactor` | High (two architectures) | PR #12/#13 base = `complete-refactor` |
-| Docs on `main` describe off-`main` work | Medium (confusion) | `docs/design/*` present on `main`, Pydantic AI code absent |
+| Docs on `main` describe off-`main` work | Medium (confusion) | `my_docs/` migration design present on `main`, Pydantic AI code absent |
 | Trivial direct commits | Low | `7925bf6`, `9fa255d` |

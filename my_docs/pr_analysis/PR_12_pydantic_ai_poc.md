@@ -5,7 +5,7 @@
 > **Closes:** Issue #6 — Part of umbrella PRD #3
 > **Size:** +978 / −338, 26 files
 > **Source commit:** `8d501dc` (merge `22ec443`)
-> **Design context:** `docs/design/langchain-pydantic-ai-migration.md`, `docs/design/prd-langchain-pydantic-ai-migration.md`
+> **Design context:** [`../design/langchain-pydantic-ai-migration.md`](../design/langchain-pydantic-ai-migration.md), [`../design/prd-langchain-pydantic-ai-migration.md`](../design/prd-langchain-pydantic-ai-migration.md)
 
 ---
 
@@ -35,7 +35,7 @@ graph LR
 
 ## Problem Statement
 
-Per the design doc (`docs/design/langchain-pydantic-ai-migration.md` §Problem) and PRD:
+Per the design doc ([`langchain-pydantic-ai-migration.md`](../design/langchain-pydantic-ai-migration.md) §Problem) and PRD:
 
 > "MCP-Universe ships a custom agent framework (BaseLLM, BaseAgent, hand-rolled ReAct/function-call loops, ComponentABCMeta registry, YAML WorkflowBuilder). This works but: onboarding cost is high — patterns are project-specific, not industry-standard."
 

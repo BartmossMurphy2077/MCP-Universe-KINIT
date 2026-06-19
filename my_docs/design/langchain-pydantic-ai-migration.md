@@ -1,7 +1,9 @@
 # Design: LangChain + Pydantic AI Migration
 
+> **Location:** Fork documentation — [`my_docs/design/`](./) (not upstream `docs/design/`)  
 > Status: **Proposed** (grill session + PRD, June 2026)  
-> Deliverable type: ADR + POC, then phased implementation
+> Deliverable type: ADR + POC, then phased implementation  
+> **Implementation:** on `complete-refactor` branch; not shipped on fork `main` as of audit date
 
 ## Summary
 

@@ -1,6 +1,7 @@
 # PRD: LangChain + Pydantic AI Migration
 
-> Design doc: [`docs/design/langchain-pydantic-ai-migration.md`](docs/design/langchain-pydantic-ai-migration.md)
+> **Location:** Fork documentation — [`my_docs/design/`](./) (not upstream `docs/design/`)  
+> Design doc: [`langchain-pydantic-ai-migration.md`](./langchain-pydantic-ai-migration.md)
 
 ## Problem Statement
 
@@ -189,5 +190,5 @@ Deliverable for the analysis task: **design document + POC** proving one benchma
 
 - **MCP+ vs CE:** "CE" in the original task refers to code execution / CodeMode (programmatic tool calling), not a named component in this repo. MCP+ and CodeMode are complementary, not competing replacements.
 - **No existing LangChain or Pydantic AI footprint** in the codebase today; migration introduces new dependencies alongside existing OpenAI SDK, Anthropic, and openai-agents usage.
-- **Design doc** with architecture diagram, phased roadmap, and decision log: `docs/design/langchain-pydantic-ai-migration.md`.
+- **Design doc** with architecture diagram, phased roadmap, and decision log: [`langchain-pydantic-ai-migration.md`](./langchain-pydantic-ai-migration.md).
 - **Open questions** for follow-up: auto-select react for local LLMs without tool calling; cloud sandbox provider availability; azure as explicit factory provider.

@@ -23,14 +23,17 @@ Alongside this migration tracker, the fork keeps a separate doc set under [`my_d
 | [`my_docs/llm_judge.md`](my_docs/llm_judge.md) | LLM-as-judge evaluators vs deterministic checks; where grading LLM calls live |
 | [`my_docs/fork_evolution.md`](my_docs/fork_evolution.md) | How this fork diverged from upstream: timeline, themes, decisions, technical debt |
 | [`my_docs/architecture_delta.md`](my_docs/architecture_delta.md) | Side-by-side comparison: upstream vs `main` (Azure) vs `complete-refactor` (Pydantic AI) |
+| [`my_docs/design/langchain-pydantic-ai-migration.md`](my_docs/design/langchain-pydantic-ai-migration.md) | Migration ADR: adapter-first strategy, phased roadmap, decision log |
+| [`my_docs/design/prd-langchain-pydantic-ai-migration.md`](my_docs/design/prd-langchain-pydantic-ai-migration.md) | Migration PRD: user stories, implementation and testing decisions |
 | [`my_docs/pr_analysis/`](my_docs/pr_analysis/) | Per-PR change analysis — Azure (#2, #5), Pydantic AI (#12–#14), and non-PR branch topology |
+| [`my_docs/fix.md`](my_docs/fix.md) | Phase 1.5 pre-merge fix backlog (gates PR #14 / merge to `main`) |
 
 **How this README relates to `my_docs/`:**
 
 - **This file** — operational tracker: migration phases, registry swaps, test commands, what is shipped on `complete-refactor`.
 - **`my_docs/`** — architectural context and audit trail: *why* the fork changed, *what* upstream looked like, and whether each change is justified.
 
-Official migration design intent also lives in [`docs/design/`](docs/design/) on `main` (PRD + ADR). `my_docs/` supplements that with evidence from git history and code inspection.
+Official migration design intent lives in [`my_docs/design/`](my_docs/design/) (ADR + PRD). The rest of `my_docs/` adds audit evidence from git history and code inspection.
 
 When extending a phase, read the matching [`my_docs/pr_analysis/PR_*.md`](my_docs/pr_analysis/) entry and [`architecture_delta.md`](my_docs/architecture_delta.md) first — they list stable contracts (Executor, MCPClient, evaluators, tracing) that adapter work must preserve.
 

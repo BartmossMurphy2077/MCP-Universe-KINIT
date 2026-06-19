@@ -11,7 +11,7 @@
 ## Executive Summary
 
 * **Purpose:** Close the second half of the Azure migration — make the **LLM-as-judge evaluator path** route through the same provider stack as agents, so an Azure-only operator gets *honest* benchmark grades instead of agent-success-with-silent-judge-failure.
-* **Scope:** A new shared judge helper (`evaluator/llm_judge.py`), refactor of the two existing LLM judges (`google_search`, `deepresearch`) to use it, batch migration of benchmark YAMLs to `type: azure`, operator run scripts, smoke tests, and the migration design docs (`docs/design/*`).
+* **Scope:** A new shared judge helper (`evaluator/llm_judge.py`), refactor of the two existing LLM judges (`google_search`, `deepresearch`) to use it, batch migration of benchmark YAMLs to `type: azure`, operator run scripts, smoke tests, and the migration design docs (under `my_docs/design/`).
 * **High-level impact:** Eliminates the "split-brain" left by PR #2. Judge calls now flow through `ModelManager` with provider auto-detection (Azure when `AZURE_*` is set), restoring report fidelity for Azure-only runs.
 
 ```mermaid
@@ -128,7 +128,7 @@ The `web_search.yaml` change is significant: it swaps **Harmony ReAct (OpenRoute
 * `scripts/run_azure_benchmarks.ps1`, `run_financial_analysis.ps1`, `run_relevant_benchmarks.ps1` — batch run scripts (PowerShell — Windows operator).
 * `scripts/smoke_notion.py`, `scripts/smoke_blender.py` — config/connectivity smoke tests.
 * `.env.example` — adds `EVAL_LLM_PROVIDER`, `EVAL_LLM_MODEL_NAME`, `AZURE_JUDGE_DEPLOYMENT`.
-* `.cursor/mcp.json`, `docs/design/*` migration docs, `.scratch/azure-migration-complete/prd-issue.md`.
+* `.cursor/mcp.json`, `my_docs/` migration docs, `.scratch/azure-migration-complete/prd-issue.md`.
 * Large test churn (20+ benchmark test files touched, `test_llm_judge.py` and `test_google_search_llm_judge.py` added) — judge-config helper tests and adjustments to use a shared helper (`5a92861` "Refactor judge configuration tests to use a helper function").
 
 ---

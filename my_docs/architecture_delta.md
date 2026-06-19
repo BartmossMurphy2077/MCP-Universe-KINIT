@@ -208,7 +208,7 @@ quadrantChart
 | Two architectures (main vs refactor) | branch topology | High | None — refactor unmerged |
 | Wide research stub on canonical alias | refactor | High | Out-of-scope per PR #13 |
 | Code Mode capability misfires on Azure deployments | `context/layer.py` | High | None |
-| Docs on `main` describe off-`main` arch | `docs/design/*` | Medium | None |
+| Docs on `main` describe off-`main` arch | `my_docs/design/` | Medium | Partially — design docs in `my_docs/design/` |
 | Fragile judge parsing / untraced judges | fork `main` | Medium | Partially (structured for deepresearch only) |
 | No upstream re-sync (missing security PRs) | topology | Medium | None |
 | Lossy tracing shim | refactor | Medium | None |
